@@ -370,7 +370,7 @@ export default function App() {
           </div>
           <div className="footer-tech">
             <span className="tech-tag">PyTorch</span>
-            <span className="tech-tag">Flask</span>
+            <span className="tech-tag">Gradio</span>
             <span className="tech-tag">ResNet-18</span>
             <span className="tech-tag">React</span>
             <span className="tech-tag">Vite</span>
