@@ -11,7 +11,7 @@
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "@gradio/client": "^1.15.0"
+    "@gradio/client": "^2.5.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
