@@ -1,8 +1,12 @@
 /**
- * BloomAI API Client
+ * FloraAI API Client
  * Configurable via VITE_API_BASE_URL environment variable.
+ * Production Default: https://fatimatahseen-flower-recognitionai-api.hf.space
  */
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:7860').replace(/\/$/, '');
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  'https://fatimatahseen-flower-recognitionai-api.hf.space'
+).replace(/\/$/, '');
 
 /**
  * Fetch health status of the backend API
@@ -16,7 +20,7 @@ export async function getBackendHealth() {
     }
     return await res.json();
   } catch (err) {
-    throw new Error(`Unable to connect to BloomAI backend at ${API_BASE_URL}. Ensure the backend server is running.`);
+    throw new Error(`Unable to connect to FloraAI backend at ${API_BASE_URL}. Ensure the backend server is running.`);
   }
 }
 
@@ -74,9 +78,8 @@ export async function predictFlowerImage(imageFile) {
     return data;
   } catch (err) {
     if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
-      throw new Error(`Connection to backend failed. Please verify the backend is running at ${API_BASE_URL}.`);
+      throw new Error(`Connection to FloraAI backend failed. Please verify the backend is running at ${API_BASE_URL}.`);
     }
     throw err;
   }
 }
-

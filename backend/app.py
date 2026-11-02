@@ -1,5 +1,5 @@
 """
-Flask REST API for BloomAI Flower Classification.
+Flask REST API for FloraAI Flower Classification.
 Exposes:
   - GET  /api/health
   - GET  /api/model_info
@@ -32,8 +32,9 @@ def allowed_file(filename: str) -> bool:
 def health():
     return jsonify({
         "status": "online",
-        "service": "BloomAI Flower Classification API",
+        "service": "FloraAI Flower Recognition API",
         "model_loaded": predictor.is_loaded,
+        "model_name": predictor.config.get("model_name", "ResNet-18"),
         "checkpoint_source": predictor.checkpoint_source,
         "error": predictor.load_error
     }), 200 if predictor.is_loaded else 503
@@ -98,4 +99,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
     host = os.environ.get("HOST", "0.0.0.0")
     app.run(host=host, port=port, debug=False)
-
