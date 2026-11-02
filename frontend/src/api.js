@@ -1,85 +1,131 @@
-/**
- * FloraAI API Client
- * Configurable via VITE_API_BASE_URL environment variable.
- * Production Default: https://fatimatahseen-flower-recognitionai-api.hf.space
- */
-export const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ||
-  'https://fatimatahseen-flower-recognitionai-api.hf.space'
-).replace(/\/$/, '');
 
 /**
- * Fetch health status of the backend API
+ * BloomAI - Hugging Face Gradio API Client
+ * Connects to the trained ResNet-18 flower classification model.
+ */
+
+import { Client, handle_file } from "@gradio/client";
+
+const SPACE_ID = "FatimaTahseen/flower_recognitionai-api";
+
+let clientPromise = null;
+
+/**
+ * Connect to the Hugging Face Gradio Space.
+ * Reuse the connection instead of reconnecting for every request.
+ */
+async function getClient() {
+  if (!clientPromise) {
+    clientPromise = Client.connect(SPACE_ID).catch((error) => {
+      clientPromise = null;
+      throw error;
+    });
+  }
+
+  return clientPromise;
+}
+
+/**
+ * Check whether the Hugging Face backend is reachable.
  */
 export async function getBackendHealth() {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/health`);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || `Server responded with status ${res.status}`);
-    }
-    return await res.json();
-  } catch (err) {
-    throw new Error(`Unable to connect to FloraAI backend at ${API_BASE_URL}. Ensure the backend server is running.`);
+    await getClient();
+
+    return {
+      status: "online",
+      message: "BloomAI backend connected successfully.",
+    };
+  } catch (error) {
+    throw new Error(
+      "Unable to connect to the Hugging Face backend. Please try again later."
+    );
   }
 }
 
 /**
- * Fetch model information & evaluation metrics
+ * Return the trained model information and evaluation metrics.
  */
 export async function getModelInfo() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/model_info`);
-    if (!res.ok) {
-      throw new Error(`Failed to load model info (status ${res.status})`);
-    }
-    return await res.json();
-  } catch (err) {
-    throw new Error(err.message || 'Error fetching model information.');
-  }
+  return {
+    model_name: "ResNet-18",
+    architecture: "ResNet-18 with custom classification head",
+    classes: ["daisy", "dandelion", "rose", "sunflower", "tulip"],
+    accuracy: 87.21,
+    macro_f1: 87.20,
+    macro_precision: 87.25,
+    macro_recall: 87.20,
+    status: "loaded",
+  };
 }
 
 /**
- * Predict flower species for an uploaded image file
+ * Classify an uploaded flower image.
+ * The Gradio API returns three outputs:
+ * 1. Predicted flower
+ * 2. Confidence score
+ * 3. Top-three probability results
+ *
  * @param {File} imageFile
  */
 export async function predictFlowerImage(imageFile) {
   if (!imageFile) {
-    throw new Error('Please select an image file to classify.');
+    throw new Error("Please select an image file to classify.");
   }
 
-  // Client-side validation: format check
-  const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-  if (!validTypes.includes(imageFile.type) && !/\.(jpe?g|png|webp)$/i.test(imageFile.name)) {
-    throw new Error('Unsupported format. Please upload a JPG, PNG, or WEBP image.');
+  const validTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+  ];
+
+  if (
+    !validTypes.includes(imageFile.type) &&
+    !/\.(jpe?g|png|webp)$/i.test(imageFile.name)
+  ) {
+    throw new Error(
+      "Unsupported format. Please upload a JPG, PNG, or WEBP image."
+    );
   }
 
-  // Client-side validation: file size limit (10MB)
   const maxSize = 10 * 1024 * 1024;
-  if (imageFile.size > maxSize) {
-    throw new Error('File size exceeds the 10 MB limit. Please choose a smaller image.');
-  }
 
-  const formData = new FormData();
-  formData.append('image', imageFile);
+  if (imageFile.size > maxSize) {
+    throw new Error(
+      "File size exceeds the 10 MB limit. Please choose a smaller image."
+    );
+  }
 
   try {
-    const res = await fetch(`${API_BASE_URL}/api/predict`, {
-      method: 'POST',
-      body: formData,
+    const client = await getClient();
+
+    const result = await client.predict("/predict", {
+      image: handle_file(imageFile),
     });
 
-    const data = await res.json().catch(() => ({}));
+    const [prediction, confidence, labelResult] = result.data;
 
-    if (!res.ok) {
-      throw new Error(data.error || `Classification failed (${res.status})`);
-    }
+    const topPredictions =
+      labelResult?.confidences?.map((item) => ({
+        label: item.label,
+        confidence: item.confidence,
+      })) || [];
 
-    return data;
-  } catch (err) {
-    if (err.message.includes('Failed to fetch') || err.name === 'TypeError') {
-      throw new Error(`Connection to FloraAI backend failed. Please verify the backend is running at ${API_BASE_URL}.`);
-    }
-    throw err;
+    return {
+      prediction,
+      predicted_class: prediction,
+      predicted_flower: prediction,
+      confidence,
+      top_predictions: topPredictions,
+      top3: topPredictions,
+      probabilities: topPredictions,
+    };
+  } catch (error) {
+    console.error("BloomAI prediction error:", error);
+
+    throw new Error(
+      error.message ||
+        "Flower classification failed. Please try again."
+    );
   }
 }
