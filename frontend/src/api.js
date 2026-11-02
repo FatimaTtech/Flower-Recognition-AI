@@ -2,6 +2,7 @@
 /**
  * FloraAI - Hugging Face Gradio API Client
  * Connects to the trained ResNet-18 flower classification model.
+ * Includes low-confidence rejection for unsupported images.
  */
 
 import { Client, handle_file } from "@gradio/client";
@@ -9,6 +10,8 @@ import { Client, handle_file } from "@gradio/client";
 const SPACE_ID = "FatimaTahseen/flower_recognitionai-api";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+const CONFIDENCE_THRESHOLD = 70;
 
 const VALID_TYPES = [
   "image/jpeg",
@@ -120,9 +123,8 @@ function toPercentage(value) {
     return 0;
   }
 
-  const percentage = number <= 1
-    ? number * 100
-    : number;
+  const percentage =
+    number <= 1 ? number * 100 : number;
 
   return Number(
     Math.max(0, Math.min(100, percentage)).toFixed(2)
@@ -160,12 +162,26 @@ export async function predictFlowerImage(imageFile) {
       );
     }
 
+    // Convert predicted confidence into a percentage.
+    const confidence = toPercentage(rawConfidence);
+
+    // Reject predictions below the confidence threshold.
+    if (confidence < CONFIDENCE_THRESHOLD) {
+      throw new Error(
+        "This image does not appear to contain a supported flower. " +
+        "Please upload a clear image of a daisy, dandelion, rose, " +
+        "sunflower, or tulip."
+      );
+    }
+
+    // Extract confidence scores for all flower classes.
     const confidences = Array.isArray(
       labelResult?.confidences
     )
       ? labelResult.confidences
       : [];
 
+    // Get the three highest predictions.
     const topThree = confidences
       .slice()
       .sort(
@@ -178,9 +194,10 @@ export async function predictFlowerImage(imageFile) {
         confidence: toPercentage(item.confidence),
       }));
 
+    // Return results in the format expected by App.jsx.
     return {
       predicted_class: String(prediction),
-      confidence_percentage: toPercentage(rawConfidence),
+      confidence_percentage: confidence,
       top_three: topThree,
     };
 
