@@ -111,7 +111,7 @@ export default function App() {
         <div className="header-inner">
           <a href="#" className="brand">
             <span className="brand-icon">🌸</span>
-            <span className="brand-name">BloomAI</span>
+            <span className="brand-name">FloraAI</span>
           </a>
           <nav className="nav-links">
             <a href="#classifier" className="nav-link">Classifier</a>
