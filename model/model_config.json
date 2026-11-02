@@ -1,0 +1,57 @@
+{
+  "model_name": "ResNet-18",
+  "task": "Five-Class Flower Classification",
+  "classes": ["daisy", "dandelion", "rose", "sunflower", "tulip"],
+  "class_to_idx": {
+    "daisy": 0,
+    "dandelion": 1,
+    "rose": 2,
+    "sunflower": 3,
+    "tulip": 4
+  },
+  "input_size": [3, 224, 224],
+  "image_mean": [0.485, 0.456, 0.406],
+  "image_std": [0.229, 0.224, 0.225],
+  "architecture": {
+    "backbone": "resnet18",
+    "classifier_head": [
+      "Linear(in_features=512, out_features=256, bias=True)",
+      "ReLU(inplace=True)",
+      "Dropout(p=0.5, inplace=False)",
+      "Linear(in_features=256, out_features=5, bias=True)"
+    ]
+  },
+  "evaluation_metrics": {
+    "test_accuracy": 0.8721088435374149,
+    "test_precision": 0.8725001415630436,
+    "test_recall": 0.8720217810072682,
+    "test_f1_score": 0.8719699447150348
+  },
+  "comparison_metrics": {
+    "MLP": {
+      "test_accuracy": 0.4897959183673469,
+      "test_precision": 0.49250930289205985,
+      "test_recall": 0.4912048627900596,
+      "test_f1_score": 0.4789968681594785
+    },
+    "Original CNN": {
+      "test_accuracy": 0.5265306122448979,
+      "test_precision": 0.52781487034433,
+      "test_recall": 0.5254586641448189,
+      "test_f1_score": 0.5184134616308544
+    },
+    "Optimized CNN": {
+      "test_accuracy": 0.672108843537415,
+      "macro_precision": 0.6736284384890677,
+      "macro_recall": 0.6703867186680886,
+      "macro_f1": 0.6696503583557687
+    },
+    "ResNet-18": {
+      "test_accuracy": 0.8721088435374149,
+      "test_precision": 0.8725001415630436,
+      "test_recall": 0.8720217810072682,
+      "test_f1_score": 0.8719699447150348
+    }
+  }
+}
+
