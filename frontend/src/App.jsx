@@ -366,7 +366,7 @@ export default function App() {
       <footer className="footer">
         <div className="footer-inner">
           <div>
-            <span className="footer-brand">BloomAI</span> — Academic Machine Learning Project for Botanical Classification.
+            <span className="footer-brand">FloraAI</span> — Academic Machine Learning Project for Botanical Classification.
           </div>
           <div className="footer-tech">
             <span className="tech-tag">PyTorch</span>
