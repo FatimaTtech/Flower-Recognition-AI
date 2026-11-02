@@ -1,26 +1,54 @@
 
 /**
  * FloraAI - Hugging Face Gradio API Client
- * Uses the trained ResNet-18 flower classification model.
+ * Connects to the trained ResNet-18 flower classification model.
  */
 
 import { Client, handle_file } from "@gradio/client";
 
 const SPACE_ID = "FatimaTahseen/flower_recognitionai-api";
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+const VALID_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
+
+const FLOWER_CLASSES = [
+  "daisy",
+  "dandelion",
+  "rose",
+  "sunflower",
+  "tulip",
+];
+
 let clientPromise = null;
 
+/**
+ * Connect to the public Hugging Face Space.
+ */
 async function getClient() {
   if (!clientPromise) {
     clientPromise = Client.connect(SPACE_ID).catch((error) => {
       clientPromise = null;
-      throw error;
+
+      console.error("Hugging Face connection error:", error);
+
+      throw new Error(
+        "Could not connect to the FloraAI model. " +
+        "Please check the Hugging Face Space and try again."
+      );
     });
   }
 
   return clientPromise;
 }
 
+/**
+ * Check backend connectivity.
+ */
 export async function getBackendHealth() {
   try {
     await getClient();
@@ -32,17 +60,19 @@ export async function getBackendHealth() {
       model_name: "ResNet-18",
     };
   } catch (error) {
-    throw new Error(
-      "Unable to connect to FloraAI Hugging Face backend. Please try again later."
-    );
+    console.error("Backend health check failed:", error);
+    throw error;
   }
 }
 
+/**
+ * Return model information.
+ */
 export async function getModelInfo() {
   return {
     model_name: "ResNet-18",
     architecture: "ResNet-18 with custom classification head",
-    classes: ["daisy", "dandelion", "rose", "sunflower", "tulip"],
+    classes: FLOWER_CLASSES,
     accuracy: 87.21,
     macro_f1: 87.20,
     macro_precision: 87.25,
@@ -51,27 +81,59 @@ export async function getModelInfo() {
   };
 }
 
-export async function predictFlowerImage(imageFile) {
+/**
+ * Validate the uploaded image.
+ */
+function validateImage(imageFile) {
   if (!imageFile) {
-    throw new Error("Please select an image file to classify.");
+    throw new Error("Please select an image first.");
   }
 
-  const validTypes = ["image/jpeg", "image/png", "image/webp"];
+  const validType =
+    VALID_TYPES.includes(imageFile.type) ||
+    /\.(jpe?g|png|webp)$/i.test(imageFile.name);
 
-  if (
-    !validTypes.includes(imageFile.type) &&
-    !/\.(jpe?g|png|webp)$/i.test(imageFile.name)
-  ) {
+  if (!validType) {
     throw new Error(
-      "Unsupported format. Please upload a JPG, PNG, or WEBP image."
+      "Unsupported image format. Upload JPG, PNG, or WEBP."
     );
   }
 
-  if (imageFile.size > 10 * 1024 * 1024) {
+  if (imageFile.size > MAX_FILE_SIZE) {
     throw new Error(
-      "File size exceeds the 10 MB limit. Please choose a smaller image."
+      "Image exceeds 10 MB. Please choose a smaller image."
     );
   }
+
+  if (imageFile.size === 0) {
+    throw new Error("The selected image is empty.");
+  }
+}
+
+/**
+ * Convert confidence values to percentages.
+ */
+function toPercentage(value) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return 0;
+  }
+
+  const percentage = number <= 1
+    ? number * 100
+    : number;
+
+  return Number(
+    Math.max(0, Math.min(100, percentage)).toFixed(2)
+  );
+}
+
+/**
+ * Predict the flower using the Hugging Face model.
+ */
+export async function predictFlowerImage(imageFile) {
+  validateImage(imageFile);
 
   try {
     const client = await getClient();
@@ -80,18 +142,36 @@ export async function predictFlowerImage(imageFile) {
       image: handle_file(imageFile),
     });
 
-    const [prediction, rawConfidence, labelResult] = result.data;
+    if (!result || !Array.isArray(result.data)) {
+      throw new Error(
+        "The model returned an invalid response."
+      );
+    }
 
-    const toPercentage = (value) => {
-      const number = Number(value);
-      return Number.isFinite(number)
-        ? Number((number <= 1 ? number * 100 : number).toFixed(2))
-        : 0;
-    };
+    const [
+      prediction,
+      rawConfidence,
+      labelResult,
+    ] = result.data;
 
-    const topThree = (labelResult?.confidences || [])
+    if (!prediction) {
+      throw new Error(
+        "The model could not identify a flower."
+      );
+    }
+
+    const confidences = Array.isArray(
+      labelResult?.confidences
+    )
+      ? labelResult.confidences
+      : [];
+
+    const topThree = confidences
       .slice()
-      .sort((a, b) => Number(b.confidence) - Number(a.confidence))
+      .sort(
+        (a, b) =>
+          Number(b.confidence) - Number(a.confidence)
+      )
       .slice(0, 3)
       .map((item) => ({
         class_name: String(item.label),
@@ -103,11 +183,13 @@ export async function predictFlowerImage(imageFile) {
       confidence_percentage: toPercentage(rawConfidence),
       top_three: topThree,
     };
+
   } catch (error) {
     console.error("FloraAI prediction error:", error);
 
     throw new Error(
-      error.message || "Flower classification failed. Please try again."
+      error.message ||
+      "Flower classification failed. Please try again."
     );
   }
 }
